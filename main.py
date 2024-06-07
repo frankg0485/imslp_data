@@ -6,7 +6,7 @@ def main():
         prop=["images"]
     )
     print("--start querying imslp--")
-    print(mw.query())
+    print(mw.query(num_pages=100))
     print("--finish querying imslp--")
 
 if __name__ == "__main__":
