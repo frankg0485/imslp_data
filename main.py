@@ -3,10 +3,11 @@ from media_wiki import MediaWikiIMSLP
 
 def main():
     mw = MediaWikiIMSLP(
-        prop=["images"]
+        list="categorymembers",
+        pageid=1302
     )
     print("--start querying imslp--")
-    print(mw.query(num_pages=100))
+    mw.query(num_pages=10000)
     print("--finish querying imslp--")
 
 if __name__ == "__main__":

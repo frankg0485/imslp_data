@@ -23,15 +23,22 @@ class MediaWikiIMSLP:
                  format="json",
                  action="query",
                  prop: list[str]=["images"],
-                 list="allcategories"):
+                 list="allcategories",
+                 pageid=None
+                 ):
         self.format = format
         self.action = action
         self.prop = prop
         self.list = list
+        self.pageid = pageid
 
 
     # result JSON:
     # {
+    #   **OPTIONAL**
+    #   warnings: {
+    #   
+    #   }
     #   self.action: {
     #       self.list: {
     #       
@@ -45,7 +52,10 @@ class MediaWikiIMSLP:
     #   }
     # 
     # }
-    def query(self, num_pages=1):
+    # get all composers: https://imslp.org/api.php?action=query&list=categorymembers&format=json&cmpageid=1302
+    # example composer: https://imslp.org/api.php?action=query&prop=categoryinfo&titles=Category:Abadie,%20Louis
+
+    def query(self, out_path="out.txt", num_pages=1):
         params = {
             "format": self.format,
             "action": self.action,
@@ -53,19 +63,29 @@ class MediaWikiIMSLP:
             "list": self.list
         }
 
-        results_list = []
-        for _ in range(num_pages):
-            res = requests.get(BASE_URL, params=params)
-            print("finished querying url", res.url)
+        if params["list"] == "categorymembers":
+            params["cmpageid"] = self.pageid
+            params["cmlimit"] = 5000
 
-            res_json = res.json()
-            print("RESULT:", res_json)
-            results_list.extend(res_json[self.action][self.list])
-            
-            continue_dict = res_json["query-continue"][self.list]
-            continue_param = list(continue_dict.keys())[0]
-            print("continuing with param {}, value {}".format(continue_param, continue_dict[continue_param]))
-            params[continue_param] = continue_dict[continue_param]
+        with open(out_path, 'w') as outfile:
+            for i in range(num_pages):
+                res = requests.get(BASE_URL, params=params)
+                print("finished querying url", res.url)
 
-        return res.json()
-
+                res_json = res.json()
+                #print("RESULT:", res_json)
+                if "error" in res_json:
+                    raise ValueError(res_json["error"]["info"])
+                res_list = res_json[self.action][self.list]
+                for r in res_list:
+                    outfile.write("{}\n".format(r["pageid"]))
+                outfile.flush()
+                try:
+                    continue_dict = res_json["query-continue"][self.list]
+                except ValueError:
+                    print("Reached the end: queried {} pages total".format(i + 1))
+                    break
+                continue_param = list(continue_dict.keys())[0]
+                params[continue_param] = continue_dict[continue_param]
+            else:
+                print("Successfully queried {} pages".format(num_pages()))
