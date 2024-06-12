@@ -135,7 +135,8 @@ class MediaWikiIMSLP:
                 res_json = res.json()
                 if "error" in res_json:
                     raise ValueError(res_json["error"]["info"])
-
+                if "warnings" in res_json:
+                    print(res_json["warnings"])
                 res_list = []
                 if params.get("list"):
                     res_list = [res_json[self.action][l] for l in self.list]
