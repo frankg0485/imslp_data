@@ -40,19 +40,27 @@ class MediaWikiIMSLP:
 
     # all props and lists have a prefix for their subparams
     pref_map = {
+        # prop
         "info": "in",
         "images": "im",
         "imageinfo": "ii",
         "categories": "cl",
         "categoryinfo": "ci",
+
+        # list
         "categorymembers": "cm",
+        "allcategories": "ac",
+        "allimages": "ai",
+        "allpages": "ap",
+        "alllinks": "al",
+        "search": "sr"
     }
 
     def _get_prefix(self, prop):
         if pref := self.pref_map.get(prop):
             return pref
         else:
-            raise ValueError("get_prefix(): no prefix found, or invalid prop/list")
+            raise ValueError("get_prefix(): no prefix found for {}, or invalid prop/list".format(prop))
 
     # result JSON:
     # {
@@ -88,7 +96,7 @@ class MediaWikiIMSLP:
             prefs = [self._get_prefix(p) for p in self.prop]
         elif len(self.list):
             params["list"] = "|".join(self.list)
-            prefs = [self._get_prefix(p) for p in self.prop]
+            prefs = [self._get_prefix(p) for p in self.list]
         else:
             raise ValueError("need either self.prop or self.list to be non-empty")
 
@@ -118,7 +126,8 @@ class MediaWikiIMSLP:
             else:
                 raise ValueError("list=categorymembers requires either pageid or title")
 
-        with open(out_path, "w") as outfile:
+        return_res = []
+        with open(out_path, "a") as outfile:
             for i in range(num_pages):
                 res = requests.get(BASE_URL, params=params)
                 print("finished querying url", res.url)
@@ -132,11 +141,13 @@ class MediaWikiIMSLP:
                     res_list = [res_json[self.action][l] for l in self.list]
                     for r in res_list:
                         for l in r:
-                            outfile.write("{}\n".pformat(l))
+                            return_res.append(l)
+                            outfile.write("{}\n".format(pprint.pformat(l)))
                 elif params.get("prop"):  # prop doesn't have query-continue
                     res_list = res_json[self.action]["pages"]
                     for _, val in res_list.items():
-                        outfile.write("{}\n".format(pprint.pformat(val, depth=5)))
+                        return_res.append(val)
+                        outfile.write("{}\n".format(pprint.pformat(val)))
                     break
 
                 outfile.flush()
@@ -147,8 +158,13 @@ class MediaWikiIMSLP:
                 except ValueError:
                     print("Reached the end: queried {} pages total".format(i + 1))
                     break
-
-                for param, val in continue_dicts.items():
-                    params[param] = val
+                
+                for cd in continue_dicts:
+                    for param, val in cd.items():
+                        params[param] = val
             else:
-                print("Successfully queried {} pages".format(num_pages()))
+                print("Successfully queried {} pages".format(num_pages))
+
+            outfile.flush()
+        
+        return return_res
